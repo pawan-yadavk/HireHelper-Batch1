@@ -46,6 +46,23 @@ async function createRequest(req, res) {
       taskWithCreator = { ...updatedTaskDoc, createdBy: creator };
     }
 
+    // Emit real-time notification to task owner via Socket.IO
+    try {
+      const io = req.app.get("io");
+      if (io) {
+        const helper = await User.findOne({ id: req.user.id })
+          .select("id first_name last_name profile_picture")
+          .lean();
+        io.to(`user:${task.createdBy}`).emit("task:requested", {
+          taskId: task._id,
+          taskTitle: task.title,
+          helper: helper || { id: req.user.id },
+        });
+      }
+    } catch (socketErr) {
+      console.error("Socket emit error (task:requested):", socketErr);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Request created successfully",

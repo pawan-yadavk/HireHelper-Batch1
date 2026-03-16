@@ -6,9 +6,8 @@
 
 .app-content {
   flex: 1;
-  padding: 32px;
   background-color: #f8fafc;
 }
 .app-page {
-  padding: 24px;
+  padding: 24px 32px 32px;
 }

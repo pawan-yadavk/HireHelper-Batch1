@@ -181,6 +181,77 @@ async function getTaskById(req, res) {
   }
 }
 
+// ─── Update Task (creator-only) ────────────────────────────────────────────────
+
+async function updateTask(req, res) {
+  try {
+    const { id } = req.params;
+    const { title, description, location, start_time, end_time } = req.body || {};
+
+    const task = await Task.findOne({ _id: id, createdBy: req.user.id });
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found or you don't have permission to update it",
+      });
+    }
+
+    if (title !== undefined) task.title = title;
+    if (description !== undefined) task.description = description;
+    if (location !== undefined) task.location = location;
+    if (start_time !== undefined) task.startTime = start_time;
+
+    if (end_time !== undefined) {
+      task.endTime = end_time && String(end_time).trim() !== "" ? end_time : null;
+    }
+
+    await task.save();
+
+    res.json({
+      success: true,
+      message: "Task updated successfully",
+      data: task,
+    });
+  } catch (err) {
+    console.error("UPDATE TASK ERROR:", err);
+    res.status(500).json({ success: false, message: "Failed to update task" });
+  }
+}
+
+// ─── Update Task Picture (creator-only) ────────────────────────────────────────
+
+async function updateTaskPicture(req, res) {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+
+    const task = await Task.findOne({ _id: id, createdBy: req.user.id });
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found or you don't have permission to update it",
+      });
+    }
+
+    const uploaded = await uploadToCloudinary(req.file);
+    const pictureUrl = uploaded.secure_url || uploaded.url;
+    task.picture = pictureUrl;
+    await task.save();
+
+    return res.json({
+      success: true,
+      message: "Task picture updated successfully",
+      data: task,
+    });
+  } catch (err) {
+    console.error("UPDATE TASK PICTURE ERROR:", err);
+    return res.status(500).json({ success: false, message: "Failed to update task picture" });
+  }
+}
+
 async function getFeedTasks(req, res) {
   try {
     const tasks = await Task.find({ createdBy: { $ne: req.user.id } })
@@ -219,4 +290,6 @@ module.exports = {
   getFeedTasks,
   reorderTasks,
   updateTaskStatus,
+  updateTask,
+  updateTaskPicture,
 };

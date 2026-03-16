@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Chip } from "@mui/material";
+import { Button, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AddIcon from "@mui/icons-material/Add";
@@ -131,7 +131,7 @@ function StatusDropdown({ taskId, currentStatus, onStatusChange }) {
   );
 }
 
-function SortableTaskCard({ task, onNavigate, onStatusChange }) {
+function SortableTaskCard({ task, onStatusChange, onEdit }) {
   const {
     attributes,
     listeners,
@@ -153,6 +153,7 @@ function SortableTaskCard({ task, onNavigate, onStatusChange }) {
       className={`task-card ${isDragging ? "task-card-dragging" : ""}`}
       {...attributes}
       {...listeners}
+      onClick={() => onEdit(task)}
     >
       {task.picture ? (
         <img src={task.picture} alt={task.title} className="task-card-image" />
@@ -203,6 +204,18 @@ const MyTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [editingTask, setEditingTask] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const editFileRef = useRef(null);
+  const [editPictureFile, setEditPictureFile] = useState(null);
+  const [editPreview, setEditPreview] = useState(null);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -249,6 +262,92 @@ const MyTasks = () => {
     setTasks((prev) =>
       prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t))
     );
+  };
+
+  const openEditDialog = (task) => {
+    setEditingTask(task);
+    setEditTitle(task.title || "");
+    setEditDescription(task.description || "");
+    setEditLocation(task.location || "");
+    setEditStartTime(task.startTime ? String(task.startTime).slice(0, 16) : "");
+    setEditEndTime(task.endTime ? String(task.endTime).slice(0, 16) : "");
+    setEditPictureFile(null);
+    setEditPreview(task.picture || null);
+    if (editFileRef.current) editFileRef.current.value = "";
+  };
+
+  const closeEditDialog = () => {
+    if (savingEdit || uploadingPicture) return;
+    setEditingTask(null);
+  };
+
+  const handleEditPictureChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.warning("Image must be under 5 MB");
+      return;
+    }
+    setEditPictureFile(file);
+    setEditPreview(URL.createObjectURL(file));
+  };
+
+  const handleUploadEditPicture = async () => {
+    if (!editingTask) return;
+    if (!editPictureFile) {
+      toast.warning("Please choose an image first");
+      return;
+    }
+    try {
+      setUploadingPicture(true);
+      const formData = new FormData();
+      formData.append("picture", editPictureFile);
+      const res = await api.upload(`/api/tasks/${editingTask._id}/picture`, formData);
+      if (res?.data) {
+        const updated = res.data;
+        setTasks((prev) =>
+          prev.map((t) => (t._id === updated._id ? { ...t, ...updated } : t))
+        );
+        setEditingTask((prev) => (prev ? { ...prev, ...updated } : prev));
+        setEditPictureFile(null);
+        toast.success("Picture updated");
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to update picture");
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTask) return;
+    if (!editTitle.trim() || !editLocation.trim() || !editStartTime) {
+      toast.warning("Title, location and start time are required");
+      return;
+    }
+    try {
+      setSavingEdit(true);
+      const body = {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        location: editLocation.trim(),
+        start_time: new Date(editStartTime).toISOString(),
+        end_time: editEndTime ? new Date(editEndTime).toISOString() : "",
+      };
+      const res = await api.patch(`/api/tasks/${editingTask._id}`, body);
+      if (res?.data) {
+        const updated = res.data;
+        setTasks((prev) =>
+          prev.map((t) => (t._id === updated._id ? { ...t, ...updated } : t))
+        );
+        toast.success("Task updated");
+      }
+      setEditingTask(null);
+    } catch (err) {
+      toast.error(err.message || "Failed to update task");
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   return (
@@ -298,14 +397,128 @@ const MyTasks = () => {
                 <SortableTaskCard
                   key={task._id}
                   task={task}
-                  onNavigate={(id) => navigate(`/task/${id}`)}
                   onStatusChange={handleStatusChange}
+                  onEdit={openEditDialog}
                 />
               ))}
             </div>
           </SortableContext>
         </DndContext>
       )}
+
+      <Dialog open={!!editingTask} onClose={closeEditDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Edit Task</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 4, marginBottom: 8 }}>
+            {editPreview ? (
+              <img
+                src={editPreview}
+                alt="Task"
+                style={{ width: 140, height: 100, borderRadius: 10, objectFit: "cover" }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 140,
+                  height: 100,
+                  borderRadius: 10,
+                  background: "#e2e8f0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#64748b",
+                  fontWeight: 600,
+                }}
+              >
+                No image
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <input
+                ref={editFileRef}
+                type="file"
+                hidden
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleEditPictureChange}
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => editFileRef.current?.click()}
+                sx={{ textTransform: "none", borderRadius: "8px" }}
+                disabled={uploadingPicture || savingEdit}
+              >
+                Choose image
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleUploadEditPicture}
+                sx={{ textTransform: "none", borderRadius: "8px" }}
+                disabled={!editPictureFile || uploadingPicture || savingEdit}
+              >
+                {uploadingPicture ? "Uploading..." : "Update image"}
+              </Button>
+            </div>
+          </div>
+
+          <TextField
+            fullWidth
+            label="Title"
+            margin="normal"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+          />
+          <TextField
+            fullWidth
+            label="Description"
+            margin="normal"
+            multiline
+            minRows={3}
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+          />
+          <TextField
+            fullWidth
+            label="Location"
+            margin="normal"
+            value={editLocation}
+            onChange={(e) => setEditLocation(e.target.value)}
+          />
+          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+            <TextField
+              fullWidth
+              label="Start Time"
+              type="datetime-local"
+              InputLabelProps={{ shrink: true }}
+              value={editStartTime}
+              onChange={(e) => setEditStartTime(e.target.value)}
+            />
+            <TextField
+              fullWidth
+              label="End Time (optional)"
+              type="datetime-local"
+              InputLabelProps={{ shrink: true }}
+              value={editEndTime}
+              onChange={(e) => setEditEndTime(e.target.value)}
+            />
+          </div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={closeEditDialog} disabled={savingEdit || uploadingPicture} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveEdit}
+            disabled={savingEdit || uploadingPicture}
+            sx={{ textTransform: "none" }}
+          >
+            {savingEdit ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

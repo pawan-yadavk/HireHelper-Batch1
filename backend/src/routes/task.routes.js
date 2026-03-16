@@ -9,6 +9,8 @@ const {
   getFeedTasks,
   reorderTasks,
   updateTaskStatus,
+  updateTask,
+  updateTaskPicture,
 } = require("../controllers/task.controller");
 
 const { requireAuth } = require("../middleware/auth");
@@ -16,8 +18,10 @@ const { requireAuth } = require("../middleware/auth");
 router.post("/", requireAuth, upload.single("picture"), createTask);
 router.patch("/reorder", requireAuth, reorderTasks);
 router.patch("/:id/status", requireAuth, updateTaskStatus); // ← new
+router.patch("/:id/picture", requireAuth, upload.single("picture"), updateTaskPicture);
 router.get("/feed", requireAuth, getFeedTasks);
 router.get("/mine", requireAuth, getMyTasks);
+router.patch("/:id", requireAuth, updateTask);
 router.get("/:id", getTaskById);
 
 module.exports = router;
