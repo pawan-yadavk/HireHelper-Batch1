@@ -19,22 +19,24 @@ async function uploadToCloudinary(file) {
   });
 }
 
+// ✅ FIXED: camelCase everywhere
 async function createTask(req, res) {
   try {
     console.log("REQ BODY:", req.body);
     console.log("REQ FILE:", req.file);
     console.log("REQ USER:", req.user);
 
-    const { title, description, location, start_time, end_time } = req.body;
+    const { title, description, location, startTime, endTime } = req.body;
 
-    if (!title || !location || !start_time) {
+    if (!title || !location || !startTime) {
       return res.status(400).json({
         success: false,
         message: "Title, Location and Start Time are required",
       });
     }
 
-    const finalEndTime = end_time && end_time.trim() !== "" ? end_time : null;
+    const finalEndTime =
+      endTime && endTime.trim() !== "" ? endTime : null;
 
     let pictureUrl = null;
     if (req.file) {
@@ -46,7 +48,7 @@ async function createTask(req, res) {
       title,
       description,
       location,
-      startTime: start_time,
+      startTime: startTime,
       endTime: finalEndTime,
       picture: pictureUrl,
       createdBy: req.user?.id,
@@ -132,8 +134,7 @@ async function reorderTasks(req, res) {
   }
 }
 
-// ─── Update Task Status ───────────────────────────────────────────────────────
-
+// ✅ FIXED
 async function updateTaskStatus(req, res) {
   try {
     const { id } = req.params;
@@ -147,7 +148,6 @@ async function updateTaskStatus(req, res) {
       });
     }
 
-    // Find task and make sure it belongs to the logged in user
     const task = await Task.findOne({ _id: id, createdBy: req.user.id });
 
     if (!task) {
@@ -181,12 +181,11 @@ async function getTaskById(req, res) {
   }
 }
 
-// ─── Update Task (creator-only) ────────────────────────────────────────────────
-
+// ✅ FIXED here too
 async function updateTask(req, res) {
   try {
     const { id } = req.params;
-    const { title, description, location, start_time, end_time } = req.body || {};
+    const { title, description, location, startTime, endTime } = req.body || {};
 
     const task = await Task.findOne({ _id: id, createdBy: req.user.id });
     if (!task) {
@@ -199,10 +198,11 @@ async function updateTask(req, res) {
     if (title !== undefined) task.title = title;
     if (description !== undefined) task.description = description;
     if (location !== undefined) task.location = location;
-    if (start_time !== undefined) task.startTime = start_time;
+    if (startTime !== undefined) task.startTime = startTime;
 
-    if (end_time !== undefined) {
-      task.endTime = end_time && String(end_time).trim() !== "" ? end_time : null;
+    if (endTime !== undefined) {
+      task.endTime =
+        endTime && String(endTime).trim() !== "" ? endTime : null;
     }
 
     await task.save();
@@ -217,8 +217,6 @@ async function updateTask(req, res) {
     res.status(500).json({ success: false, message: "Failed to update task" });
   }
 }
-
-// ─── Update Task Picture (creator-only) ────────────────────────────────────────
 
 async function updateTaskPicture(req, res) {
   try {

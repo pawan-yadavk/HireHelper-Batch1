@@ -1,16 +1,21 @@
 import { io } from "socket.io-client";
-import { API_BASE_URL } from "./api";
 
 let socket;
 
-export function getSocket() {
+export const getSocket = () => {
   if (!socket) {
-    const token = localStorage.getItem("auth_token") || "";
-    socket = io(API_BASE_URL, {
+    socket = io("http://localhost:5000", {
       transports: ["websocket"],
-      auth: { token },
+    });
+
+    socket.on("connect", () => {
+      console.log("✅ Socket connected:", socket.id);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.log("❌ Socket error:", err.message);
     });
   }
-  return socket;
-}
 
+  return socket;
+};

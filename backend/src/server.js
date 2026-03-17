@@ -8,55 +8,69 @@ require("dotenv").config({
 
 const { createApp } = require("./app");
 const { connectDb } = require("./config/db");
-const { verifyAuthToken } = require("./utils/jwt");
+
+
+const Message = require("./models/Message");
 
 async function main() {
-  await connectDb(process.env.MONGO_URI);
+  try {
+    await connectDb(process.env.MONGO_URI);
 
-  const app = createApp();
-  const port = Number(process.env.PORT || 5000);
+    const app = createApp();
+    const port = Number(process.env.PORT || 5000);
 
-  const server = http.createServer(app);
+    const server = http.createServer(app);
 
-  const io = new Server(server, {
-    cors: {
-      origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-      credentials: true,
-    },
-  });
-
-  // Attach io instance so controllers can emit events via req.app.get("io")
-  app.set("io", io);
-
-  io.use((socket, next) => {
-    try {
-      const token = socket.handshake.auth?.token || "";
-      if (!token) return next(new Error("Unauthorized"));
-      const decoded = verifyAuthToken(token);
-      socket.userId = decoded.sub;
-      next();
-    } catch (err) {
-      next(new Error("Unauthorized"));
-    }
-  });
-
-  io.on("connection", (socket) => {
-    // Join a room for this user so we can emit targeted notifications
-    if (socket.userId) {
-      socket.join(`user:${socket.userId}`);
-    }
-
-    socket.on("disconnect", () => {
-      // No-op for now; room cleanup is automatic
+    const io = new Server(server, {
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+      },
     });
-  });
 
-  server.listen(port, () => {
-    console.log(`Backend listening on http://localhost:${port}`);
-  });
+    app.set("io", io);
+
+    io.on("connection", (socket) => {
+      console.log("✅ User connected:", socket.id);
+
+      // JOIN ROOM
+      socket.on("join_task_room", (taskId) => {
+        const room = `task:${taskId}`;
+        socket.join(room);
+        console.log(`📡 ${socket.id} joined ${room}`);
+      });
+
+      // SEND MESSAGE 
+      socket.on("send_task_message", async (data) => {
+        const room = `task:${data.taskId}`;
+        console.log("📩 Message:", data);
+
+        // SAVE TO MONGODB
+        try {
+          await Message.create({
+            taskId: data.taskId,
+            senderId: data.senderId, // ✅ FIXED HERE
+            text: data.text,
+          });
+        } catch (err) {
+          console.error("❌ DB Save Error:", err);
+        }
+
+        
+        io.to(room).emit("receive_task_message", data);
+      });
+
+      socket.on("disconnect", () => {
+        console.log("❌ Disconnected:", socket.id);
+      });
+    });
+
+    server.listen(port, () => {
+      console.log(`🚀 Server running on http://localhost:${port}`);
+    });
+  } catch (err) {
+    console.error("❌ Server error:", err);
+  }
 }
 
-main().catch((err) => {
-  console.error("Fatal startup error:", err);
-  process.exit(1);
-});
+main();
