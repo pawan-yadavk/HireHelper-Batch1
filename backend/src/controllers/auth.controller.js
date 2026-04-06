@@ -76,7 +76,11 @@ async function register(req, res, next) {
     user.otp_attempts = 0;
     await user.save();
 
-    await sendOtpEmail({ to: user.email_id, code: otp });
+    try {
+  await sendOtpEmail({ to: user.email_id, code: otp });
+} catch (err) {
+  console.log("Email failed, but continuing...");
+}
 
     return res.status(201).json({
       message: "Registered. OTP sent.",
@@ -180,7 +184,11 @@ async function sendOtp(req, res, next) {
     user.otp_attempts = 0;
     await user.save();
 
-    await sendOtpEmail({ to: user.email_id, code: otp });
+  try {
+  await sendOtpEmail({ to: user.email_id, code: otp });
+} catch (err) {
+  console.log("Email failed");
+}
 
     return res.json({ message: "OTP sent" });
   } catch (err) {
