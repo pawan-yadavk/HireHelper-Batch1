@@ -16,11 +16,16 @@ function getTransport() {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-  });
+      tls: { rejectUnauthorized: false },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+    });
 }
 
 async function sendOtpEmail({ to, code }) {
 
+  try {
   if (!smtpConfigured()) {
     // eslint-disable-next-line no-console
     console.log(`[DEV OTP] Email to ${to}: ${code}`);
@@ -30,12 +35,16 @@ async function sendOtpEmail({ to, code }) {
   const transport = getTransport();
   const from = process.env.SMTP_FROM || "no-reply@hirehelper.local";
 
-  await transport.sendMail({
+  const info = await transport.sendMail({
     from,
     to,
     subject: "Your HireHelper verification code",
     text: `Your verification code is: ${code}`,
   });
+    console.log("✅ Email sent:", info.response);
+  } catch (err) {
+    console.log("❌ EMAIL ERROR:", err.message);
+  }
 }
 
 module.exports = { sendOtpEmail };
