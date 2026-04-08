@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 
 import Landing from "../pages/Landing";
@@ -26,8 +26,18 @@ const AppRoutes = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const location = useLocation();
+
   const checkAuth = useCallback(async () => {
     try {
+      const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoggedIn(false);
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
       const res = await api.get("/api/auth/me");
 
       if (res?.user) {
@@ -49,7 +59,18 @@ const AppRoutes = () => {
   }, []);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (location.pathname === "/verify-otp") {
+    setLoading(false);
+    return;
+    }
+
+  if (token) {
     checkAuth();
+  } else {
+    setLoading(false);
+  }
 
     const handleAuthChanged = () => {
       checkAuth();
