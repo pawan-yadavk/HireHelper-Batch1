@@ -9,19 +9,15 @@ function getTransport() {
   const secure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
 
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-      tls: { rejectUnauthorized: false },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
+  host: process.env.SMTP_HOST,
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
   family: 4
-    });
+});
 }
 
 async function sendOtpEmail({ to, code }) {
