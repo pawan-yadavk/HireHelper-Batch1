@@ -40,7 +40,8 @@ async function sendOtpEmail({ to, code }) {
   });
     console.log("✅ Email sent:", info.response);
   } catch (err) {
-    console.log("❌ EMAIL ERROR:", err.message);
+    console.log("❌ EMAIL ERROR:", err);
+    throw err; 
   }
 }
 

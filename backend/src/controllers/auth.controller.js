@@ -79,7 +79,8 @@ async function register(req, res, next) {
     try {
   await sendOtpEmail({ to: user.email_id, code: otp });
 } catch (err) {
-  console.log("Email failed, but continuing...");
+  console.log("❌ EMAIL ERROR:", err);
+  return res.status(500).json({ message: "Failed to send OTP email" });
 }
 
     return res.status(201).json({
@@ -187,7 +188,8 @@ async function sendOtp(req, res, next) {
   try {
   await sendOtpEmail({ to: user.email_id, code: otp });
 } catch (err) {
-  console.log("Email failed");
+  console.log("❌ EMAIL ERROR:", err);
+  return res.status(500).json({ message: "Failed to send OTP email" });
 }
 
     return res.json({ message: "OTP sent" });
