@@ -38,6 +38,11 @@ async function request(path, { method = "GET", body } = {}) {
   const data = contentType.includes("application/json") ? await res.json() : null;
 
   if (!res.ok) {
+    if (res.status === 401) {
+      authToken = null;
+  localStorage.removeItem("token");
+  return null; 
+}
     const message = data?.message || `Request failed (${res.status})`;
     const err = new Error(message);
     err.status = res.status;
@@ -64,6 +69,11 @@ async function upload(path, formData) {
   const data = contentType.includes("application/json") ? await res.json() : null;
 
   if (!res.ok) {
+    if (res.status === 401) {
+    authToken = null;
+  localStorage.removeItem("token");
+  return null;
+}
     const message = data?.message || `Request failed (${res.status})`;
     const err = new Error(message);
     err.status = res.status;
